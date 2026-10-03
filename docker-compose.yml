@@ -1,0 +1,27 @@
+# Local-only stack. The database password is a throwaway default for the test container.
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_DB: bikeshare
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - ./db:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d bikeshare && psql -U postgres -d bikeshare -tc 'SELECT count(*) FROM stations' | grep -q 10"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+  api:
+    build: ./app
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/bikeshare
+    ports:
+      - "8010:8000"
+    depends_on:
+      db:
+        condition: service_healthy
